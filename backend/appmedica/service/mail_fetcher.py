@@ -4,6 +4,7 @@ import email
 from typing import cast
 from email.utils import parsedate_to_datetime
 from email.header import decode_header
+from email.message import Message
 
 from sqlmodel import Session, select
 
@@ -11,10 +12,13 @@ import appmedica.config as config
 from appmedica.database import get_session
 from appmedica.database.mail import MailModel
 from appmedica.logger import get_logger
+from appmedica.service.gemini import describe_file
 
 logger = get_logger("service.mail_fetcher")
 
 FULL_MESSAGE = "(RFC822)"
+SUPPORTED_ATTACHMENT_TYPES = ["application/pdf", "image/jpeg", "image/png"]
+MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024  # 20 MB
 
 
 async def mail_fetcher():
@@ -22,13 +26,13 @@ async def mail_fetcher():
         try:
             db = next(get_session())
             logger.debug("Fetching unread emails...")
-            fetch_unread_emails(db)
+            _fetch_unread_emails(db)
         except Exception as e:
-            logger.error(f"Error fetching emails: {e}")
+            logger.error("Error while fetching emails: %s", e)
         await asyncio.sleep(10)
 
 
-def decode_mime_header(value: str | None) -> str:
+def _decode_mime_header(value: str | None) -> str:
     if not value:
         return ""
 
@@ -43,7 +47,45 @@ def decode_mime_header(value: str | None) -> str:
     return decoded_str
 
 
-def fetch_unread_emails(db: Session):
+def _describe_attachment(msg: Message, message_id: str) -> str:
+    found_too_large_correct_attachment = False
+    logger.debug(f"Describing attachment for message {message_id}...")
+    for part in msg.walk():
+        content_disposition = part.get("Content-Disposition", "")
+        if "attachment" not in content_disposition:
+            logger.debug(f"Skipping non-attachment part in message {message_id}.")
+            continue
+
+        content_type = part.get_content_type()
+        if content_type not in SUPPORTED_ATTACHMENT_TYPES:
+            logger.debug(
+                f"Skipping unsupported attachment type {content_type} in message {message_id}."
+            )
+            continue
+
+        payload = part.get_payload(decode=True)
+        if not isinstance(payload, (bytes, bytearray)):
+            logger.debug(
+                f"Attachment payload in message {message_id} is not bytes (got {type(payload)}). Skipping."
+            )
+            continue
+
+        file_size = len(payload)
+        if file_size > MAX_ATTACHMENT_SIZE:
+            found_too_large_correct_attachment = True
+            logger.warning(
+                f"Attachment in message {message_id} exceeds 20MB ({file_size / (1024 * 1024):.2f} MB). Skipping."
+            )
+            continue
+
+        return describe_file(content_type, payload, message_id)
+
+    if found_too_large_correct_attachment:
+        return "Załącznik przekracza limit 20MB."
+    return "Brak załącznika w obsługiwanym formacie."
+
+
+def _fetch_unread_emails(db: Session):
     logger.debug("Connecting to email server...")
     imap = imaplib.IMAP4_SSL(config.IMAP_SERVER, config.IMAP_PORT)
     imap.login(config.EMAIL_ACCOUNT, config.APP_PASSWORD)
@@ -69,33 +111,28 @@ def fetch_unread_emails(db: Session):
 
         msg_data = cast(list[tuple[bytes, bytes]], msg_data)
         msg = email.message_from_bytes(msg_data[0][1])
+        msg_id = msg.get("Message-ID", "")
 
         # if the email is already in the database, skip it
-        query = select(MailModel).where(
-            MailModel.message_id == msg.get("Message-ID", "")
-        )
+        query = select(MailModel).where(MailModel.message_id == msg_id)
         existing_mail = db.exec(query).first()
         if existing_mail:
-            logger.warning(
-                f"Email with Message-ID {msg.get('Message-ID', '')} already exists. Skipping."
-            )
+            logger.warning(f"Email with Message-ID {msg_id} already exists. Skipping.")
             continue
 
         mail = MailModel(
-            message_id=msg.get("Message-ID", ""),
-            subject=decode_mime_header(msg.get("Subject")),
-            sender=decode_mime_header(msg.get("From")),
+            message_id=msg_id,
+            subject=_decode_mime_header(msg.get("Subject")),
+            sender=_decode_mime_header(msg.get("From")),
             received_at=parsedate_to_datetime(msg.get("Date", "")),
-            attachment_summary="Brak załącznika w obsługiwanym formacie.",
+            attachment_summary=_describe_attachment(msg, msg_id),
         )
 
         db.add(mail)
         db.commit()
 
         imap.store(idx, "+FLAGS", "\\Seen")
-        logger.info(
-            f"Fetched and stored email with Message-ID {msg.get('Message-ID', '')}."
-        )
+        logger.info(f"Fetched and stored email with Message-ID {msg_id}.")
 
     imap.close()
     imap.logout()
