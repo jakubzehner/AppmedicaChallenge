@@ -4,6 +4,7 @@ services:
     environment:
       LOGGER_LEVEL: 20
       DATABASE_URL: postgresql://appmedica:appmedica@postgres:5432/appmedica
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       IMAP_SERVER: ${IMAP_SERVER}
       IMAP_PORT: ${IMAP_PORT}
