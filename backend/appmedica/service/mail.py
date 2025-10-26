@@ -12,7 +12,7 @@ class MailService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all_mails(self) -> list[MailModel]:
-        query = select(MailModel)
+    def get_all_mails(self, skip: int, limit: int) -> list[MailModel]:
+        query = select(MailModel).offset(skip).limit(limit)
         results = self.db.exec(query).all()
         return list(results)
