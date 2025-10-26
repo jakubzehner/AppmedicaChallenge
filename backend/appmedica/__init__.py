@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(mail_fetcher())
 
     for router in routers:
-        app.include_router(router)
+        app.include_router(router, prefix="/api")
 
     yield
 

@@ -2,3 +2,5 @@
 - ruff
 - fastapi
 - sqlmodel
+- gemini
+- imap
