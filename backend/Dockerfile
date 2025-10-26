@@ -5,4 +5,4 @@ WORKDIR /app
 RUN uv sync --locked --compile-bytecode
 
 EXPOSE 8000
-CMD ["uv", "run", "uvicorn", "appmedica:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "appmedica:app", "--host", "0.0.0.0", "--port", "8000", "--log-config", "/app/appmedica/logging.json", "--log-level", "info"]

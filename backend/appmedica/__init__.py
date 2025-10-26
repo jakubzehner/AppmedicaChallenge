@@ -3,9 +3,13 @@ import asyncio
 from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 
-from appmedica.database import setup_database
-from appmedica.api import routers
-from appmedica.service.mail_fetcher import mail_fetcher
+from appmedica.logger import setup_logger
+
+logger = setup_logger()
+
+from appmedica.database import setup_database  # noqa: E402
+from appmedica.api import routers  # noqa: E402
+from appmedica.service.mail_fetcher import mail_fetcher  # noqa: E402
 
 
 @asynccontextmanager

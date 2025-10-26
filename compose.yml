@@ -2,6 +2,7 @@ services:
   backend:
     build: ./backend
     environment:
+      LOGGER_LEVEL: 20
       DATABASE_URL: postgresql://appmedica:appmedica@postgres:5432/appmedica
       IMAP_SERVER: ${IMAP_SERVER}
       IMAP_PORT: ${IMAP_PORT}
