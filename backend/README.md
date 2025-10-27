@@ -1,6 +1,4 @@
-- uv
-- ruff
-- fastapi
-- sqlmodel
-- gemini
-- imap
+# Run this app in dev mode
+```sh
+uv run fastapi dev
+```
