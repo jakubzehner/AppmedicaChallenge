@@ -4,7 +4,7 @@
 
 ### Overview
 
-This project was created as part of the **Appmedica Fullstack Developer Challenge**.
+This project was created as part of the recrutation for fullstack developer position.
 It implements a fully containerized web application that periodically retrieves emails from a mailbox, summarizes attachments using an LLM, and displays the results in a simple public web interface.
 
 The goal was to deliver a **clean, production-ready, and maintainable solution** with focus on reliability, simplicity, and infrastructure automation.
@@ -34,6 +34,7 @@ The frontend is a lightweight **React** single-page application built with **Vit
 It communicates with the backend API and displays the list of email summaries.
 Additional tools:
 
+* **Tailwind CSS** – for rapid and responsive UI styling
 * **zod** – for runtime data validation and type-safe integration with the backend
 
 ### **Other Components**
